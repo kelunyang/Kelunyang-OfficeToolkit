@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+	<head>
+		<title>特課整理</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+		<style type="text/css">
+			.hideTR {
+				display: none;
+			}
+			.showTR {
+				display: table-row;
+			}
+			table {
+				border-spacing: 0px;
+				border: 1px solid black;
+				margin: 5px;
+			}
+			table#classtable> tr > td:last-child {
+				text-align: right;
+			}
+			td, th {
+				border-spacing: 0px;
+				border: 1px solid black;
+				border-right: none;
+				border-bottom: none;
+			}
+			tr td:first-child, thead th:first-child{
+				border-left: none;
+			}
+			th {
+				border-top: none;
+			}
+			footer {
+				display: none;
+			}
+			header>section#intro {
+				height: 100%;
+				width: 100%;
+				display: block;
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<section id="intro">
+				<h1>程式使用說明</h1>
+				<ul>
+					<li>請使用Google Chrome瀏覽器，並且確認你的網路是通暢的</li>
+					<li>本程式可以快速歸類Google問卷或任何Excel整理過的大量資料</li>
+					<li>操作說明如下：
+						<ol>
+							<li>首先，你需要準備一個班級資料檔，開啟之後你可以再指定班級欄位和總人數欄位是哪一個</li>
+							<li>再來，你可以拿你手上有的問卷資料檔，欄位順序沒差，但必須有一個欄位和班級資料檔中的「班級名稱」一模一樣（不然電腦也不知道該怎麼整理）</li>
+							<li>程式會自己幫你過濾掉重複的欄位，你只要指定某一個欄位資料不可以重複即可，這樣你就能統計出有填寫的完整人數</li>
+							<li>電腦統計完之後，你可以按下「輸出結果」，取得電腦分析和歸檔的結果，這時請務必同意「允許下載多個檔案」，即可快速匯出（Chrome會把檔案存在你的預設下載資料夾中），打完收工！</li>
+						</ol>
+					</li>
+					<li>請注意，本程式需要你將Excel檔案匯出為XML格式，操作方法如下
+						<ol>
+							<li>打開Excel</li>
+							<li>另存成CSV格式，關閉Excel視窗（必須關閉Excel）</li>
+							<li>用Excel打開CSV</li>
+							<li>另存成Excel-XML 2003格式</li>
+							<li>打完收工，如果你再轉存中看到任何提示訊息，全部忽略即可</li>
+						</ol>
+					</li>
+					<li>請注意，電腦彙整資料時，當資料超過2000筆，畫面可能會暫停一兩秒，放輕鬆等他算完即可，因為不論怎麼說都比你自己算好很多</li>
+				</ul>
+				<p style="text-align: right;">Designer: Kelunyang 2017 CC-BY-NC-SA</p>
+				<p style="text-align: center"><button id="start">我看懂了！開始吧！</button></p>
+			</section>
+			<section id="classdb">
+				<h1>第一步：請選擇班級資料檔（Excel 2003 XML格式）</h1>
+				<input type="file" id="classfile"/>
+				<ul>
+					<li id="classfilename"></li>
+					<li id="classtotalrows"></li>
+					<li id="classconfig"><label>班級欄位：<select id="classfield"></select></label><br/><label><input id="caculateRate" type="checkbox">計算填寫率</input><span id="totalcount" style="margin-left:30px">總人數欄位：<select id="totalField"></select></span></label></li>
+					<li id="classloadxml"><button id="classanalysis" type="button" disabled>開始分析</button><button id="downloadtotal" disabled>輸出總表</button></li>
+				</ul>
+			</section>
+			<section id="analysisresult">
+				<h1>第二步：請選擇問卷結果檔（Excel 2003 XML格式）</h1>
+				<input type="file" id="originalfile"/>
+				<ul>
+					<li id="filename"></li>
+					<li id="totalrows"></li>
+					<li id="dataconfig"><label>班級欄位：<select id="classlocation"></select></label><br/><label>不可重複欄位：<select id="uidlocation"></select></label></li>
+					<li id="loadxml"><button id="analysis" type="button" disabled>開始分析</button><button id="downloadfiles" disabled>輸出所有班級的回覆</button></li>
+				</ul>
+			</section>
+		</header>
+		<article>
+			<section id="totaltable"></section>
+		</article>
+		<footer>
+		</footer>
+		<script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+		<script>
+			xmldoc = null;
+			table = null;
+			classtable = null;
+			columnnames = null;
+			classnames = null;
+			classdata = null;
+			fulldata = null;
+			tempdata = null;
+			date = new Date();
+			$().ready(function() {
+				$("section#intro").css("height", $(document).height()+"px");
+				$("section#classdb").hide();
+				$("section#analysisresult").hide();
+				$("button#start").on("click", function() {
+					$("section#intro").hide();
+					$("section#classdb").show();
+					$("input#caculateRate").prop("checked",false);
+					$("span#totalcount").css("display","none");
+				});
+				$("input#caculateRate").on("change", function() {
+					switch($("input#caculateRate").prop("checked")) {
+						case true:
+							$("span#totalcount").css("display","inline");
+						break;
+						case false:
+							$("span#totalcount").css("display","none");
+						break;
+					}
+				});
+				$("input#classfile").on("change", function() {
+					$("li#datafilter").hide();
+					$("li#classfilename").text("讀取的檔名為："+this.files[0].name);
+					if(this.files[0].type.match("text/xml")) {
+						var reader = new FileReader();
+						reader.onload = function(e) {
+							try {
+								$("section#totaltable").empty();
+								xmldoc = $.parseXML(reader.result);
+								var xml = $(xmldoc);
+								var worksheets = xml.find("Worksheet");
+								var rows = xml.find("Row");
+								var thremain = null;
+								var logger = 0;
+								var classcolumn = 0;
+								classcolumnnames = new Array();
+								$("select#classfield").empty();
+								$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+									$("select#classfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+									$("select#totalField").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+									classcolumnnames.push({ 
+										text: value.textContent,
+										value: classcolumn
+									});
+									classcolumn++;
+								});
+								$("li#classtotalrows").text("該檔案總列數為："+rows.length+"列");
+								$("button#classanalysis").attr("disabled", false);
+								$("button#classanalysis").on("click",function() {
+									logger = 0;
+									$("section#totaltable").empty();
+									classdata = new Object();
+									classtable = $("<table id='classtable'></table>");
+									var th = $("<thead></thead>");
+									$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+										var td = $("<th>"+value.textContent+"</th>");
+										th.append(td);
+									});
+									thremain = $("input#caculateRate").prop("checked") ? ["回答人數","回答比例"] : ["回答人數"];
+									thremain.forEach(function(item) {
+										var td = $("<th>"+item+"</th>");
+										th.append(td);
+									});
+									classtable.append(th);
+									$.each(rows, function(key, value) {
+										logger++;
+										if(logger > 1) {
+											var columnlog = 0;
+											var tr = $("<tr></tr>");
+											$.each($(value).find("Cell>Data"), function(key, value) {
+												if(columnlog == $( "select#classfield option:selected" ).val()) {
+													classdata[value.textContent] = tr;
+													classtable.append(tr);
+												}
+												var td = $("<td>"+value.textContent+"</td>");
+												tr.append(td);
+												columnlog++;
+											});
+											thremain.forEach(function(item) {
+												var td = $("<td>&nbsp;</td>");
+												tr.append(td);
+											});
+										}
+									});
+									$("section#totaltable").append(classtable);
+									$("section#analysisresult").show();
+									$("button#downloadtotal").attr("disabled", false);
+									$("button#downloadtotal").on("click", function() {
+										var output = "\ufeff";
+										$("table#classtable>thead th").each(function(key, value) {
+											output += "\""+value.textContent+"\","
+										});
+										output += "\r";
+										$("table#classtable>tr").each(function(key, value) {
+											$(value).children("td").each(function(key, value) {
+												output += "\""+value.textContent+"\",";
+											});
+											output += "\r";
+										});
+										var download = $("<a></a>");
+										download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+										download.attr("download", "總表("+date.getFullYear()+(date.getMonth()+1)+date.getDate()+").csv");
+										download.css("display","none");
+										$("footer").append(download);
+										download[0].click();
+										$("footer").empty();
+									});
+								});
+							} catch(e) {
+								$("button#classanalysis").attr("disabled", true);
+								$("li#classtotalrows").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+							}
+						}
+						reader.readAsText(this.files[0]); 
+					} else {
+						$("button#classanalysis").attr("disabled", true);
+						$("li#classtotalrows").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
+					}
+				});
+				$("input#originalfile").on("change", function() {
+					$("li#filename").text("讀取的檔名為："+this.files[0].name);
+					if(this.files[0].type.match("text/xml")) {
+						var reader = new FileReader();
+						reader.onload = function(e) {
+							try {
+								xmldoc = $.parseXML(reader.result);
+								var xml = $(xmldoc);
+								var worksheets = xml.find("Worksheet");
+								var rows = xml.find("Row");
+								var columnlog = 0;
+								columnnames = new Array();
+								$("select#classlocation").empty();
+								$("select#uidlocation").empty();
+								$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+									$("select#classlocation").append($("<option></option>").attr("value", columnlog).text(value.textContent));
+									$("select#uidlocation").append($("<option></option>").attr("value", columnlog).text(value.textContent));
+									columnnames.push({ 
+										text: value.textContent,
+										value: columnlog
+									});
+									columnlog++;
+								});
+								$("li#totalrows").text("該檔案總列數為："+rows.length+"列，請記得刪除第一列的空白列，並將檔案空格補0後，開始分析");
+								$("button#analysis").attr("disabled", false);
+								$("button#analysis").on("click", function() {
+									classnames = new Array();
+									fulldata = new Array();
+									if(!$(this).attr("disabled")) {
+										var logger = 0;
+										var columnlog = 0;
+										table = $("<table></table>");
+										var th = $("<thead></thead>");
+										columnnames.forEach(function(item) {
+											var td = $("<th>"+item.text+"</th>");
+											th.append(td);
+										});
+										table.append(th);
+										var cataloglocation = $( "select#classlocation option:selected" ).val();
+										$.each(rows, function(key, value) {
+											logger++;
+											if(logger > 1) {
+												var columnlog = 0;
+												var r = new Array();
+												$.each($(value).find("Cell>Data"), function(key, value) {
+													if(columnlog == cataloglocation) {
+														classnames.push(value.textContent);
+													}
+													r.push(value.textContent);
+													/*var td = $("<td>"++"</td>");
+													tr.append(td);*/
+													columnlog++;
+												});
+												fulldata.push(r);
+												//table.append(tr);
+											}
+										});
+										//$("section#spectable").append(table);
+										$.unique(classnames);
+										//$("select#filter").empty();
+										classnames.forEach(function(item) {
+											//$("select#filter").append($("<option></option>").attr("value", item).text(item));
+											if(Object.keys(classdata).indexOf(item) != -1) {
+												dataFilter(item, function() {
+													var total = tempdata.length;
+													$(classdata[item]).children("td").eq(4).text(total);
+													if($("input#caculateRate").prop("checked")) {
+														var percent = (total/(parseInt($(classdata[item]).children("td").eq($("select#totalField option:selected").val()).text())))*100;
+														$(classdata[item]).children("td").eq(5).text((new Number(percent)).toFixed(2)+"%");
+													}
+													/*var total = $("section#spectable>table tr.showTR").length;
+													var percent = (parseInt($(classdata[item]).children("td:nth-child(4)").text())/total)*10;*/
+												});
+											}
+										});
+										$("button#downloadfiles").attr("disabled", false);
+										$("button#downloadfiles").off();
+										$("button#downloadfiles").on("click", function() {
+											classnames.forEach(function(item) {
+												dataFilter(item, function() {
+													var output = "\ufeff";
+													columnnames.forEach(function(head) {
+														output += head.text + ","
+													});
+													output += "\r";
+													tempdata.forEach(function(row) {
+														row.forEach(function(cell) {
+															output += "\""+cell+"\",";
+														});
+														output += "\r";
+													});
+													var download = $("<a></a>");
+													download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+													download.attr("download", item +"("+date.getFullYear()+(date.getMonth()+1)+date.getDate()+").csv");
+													download.css("display","none");
+													$("footer").append(download);
+													download[0].click();
+												});
+											});
+											$("footer").empty();
+										});
+									};
+								});
+							} catch(e) {
+								$("button#analysis").attr("disabled", true);
+								$("li#totalrows").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+							}
+						}
+						reader.readAsText(this.files[0]); 
+					} else {
+						$("button#analysis").attr("disabled", true);
+						$("li#totalrows").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
+					}
+				});
+				$("button#startfilter").on("click", function() {
+				});
+			});
+			function dataFilter(keyword, workpool) {
+				var uidarray = new Array();
+				var uid = $( "select#uidlocation option:selected" ).val();
+				var catalog = $( "select#classlocation option:selected" ).val();
+				tempdata = new Array();
+				fulldata.forEach(function(row) {
+					var uidjudged = -1;
+					var uidcell = row[uid];
+					var catalogcell = row[catalog];
+					if(uidarray.indexOf(uidcell) != -1) {
+						/*$(trobj).removeClass();
+						$(trobj).addClass("hideTR");*/
+						uidjudged = uidarray.indexOf(uidcell);
+						uidarray.splice(uidjudged,1);
+						uidarray.push(uidcell);
+					} else {
+						/*$(trobj).removeClass();
+						$(trobj).addClass("showTR");
+						tempdata.push(row);*/
+						uidarray.push(uidcell);
+					}
+					if(catalogcell == keyword) {
+						if(uidjudged == -1) {
+							/*$(trobj).removeClass();
+							$(trobj).addClass("showTR");*/
+							tempdata.push(row);
+						} else {
+							tempdata.splice(uidjudged,1);
+							tempdata.push(row);	//刪除舊的紀錄，把新的紀錄加進來
+							/*$(trobj).removeClass();
+							$(trobj).addClass("hideTR");*/
+						}
+					}
+					/*row.forEach(function(cell) {
+						if(!uidjudged) {
+							if(columnlog == $( "select#classlocation option:selected" ).val()) {
+								if(cell == keyword) {
+									/*$(trobj).removeClass();
+									$(trobj).addClass("showTR");
+									tempdata.push(row);
+								} else {
+									/*$(trobj).removeClass();
+									$(trobj).addClass("hideTR");
+								}
+							}
+						}
+						columnlog++;
+					});*/
+				});
+				/*$("section#spectable>table tr").removeClass();
+				$("section#spectable>table tr").each(function(key, trobj) {
+					var columnlog = 0;
+					var uidjudged = false;
+					$(trobj).children("td").each(function(key, tdobj) {
+						if(columnlog == $( "select#uidlocation option:selected" ).val()) {
+							if(uidarray.indexOf(tdobj.textContent) != -1) {
+								$(trobj).removeClass();
+								$(trobj).addClass("hideTR");
+								uidjudged = true;
+							} else {
+								$(trobj).removeClass();
+								$(trobj).addClass("showTR");
+								uidarray.push(tdobj.textContent);
+							}
+						}
+						if(!uidjudged) {
+							if(columnlog == $( "select#classlocation option:selected" ).val()) {
+								if(tdobj.textContent == keyword) {
+									$(trobj).removeClass();
+									$(trobj).addClass("showTR");
+								} else {
+									$(trobj).removeClass();
+									$(trobj).addClass("hideTR");
+								}
+							}
+						}
+						columnlog++;
+					});
+				});*/
+				workpool();
+			}
+		</script>
+	</body>
+</html>
