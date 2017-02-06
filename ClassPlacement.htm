@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+	<head>
+		<title>選課分發工具</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+        <link rel="stylesheet" href="http://code.jquery.com/ui/1.12.1/themes/cupertino/jquery-ui.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+        <style type="text/css">
+            span.config {
+                font-size: 12px;
+            }
+			span.doneConfig {
+				color: darkgreen;
+                border: darkgreen 1px solid;
+                background-color:darkseagreen;
+			}
+			span.unConfig {
+				color: maroon;
+                border: maroon 1px solid;
+                background-color:plum;
+			}
+        </style>
+	</head>
+    <body>
+        <header>
+			<section id="intro">
+				<h1>程式使用說明</h1>
+				<ul class="fa-ul">
+					<li><i class="fa-li fa fa-chrome"></i>請使用Google Chrome瀏覽器，並且確認你的網路是通暢的</li>
+					<li><i class="fa-li fa fa-wpforms"></i>本程式可以快速將學生的選課志願進行排課，你只需要準備好對應欄位的Google問卷</li>
+					<li><i class="fa-li fa fa-list-ol"></i>操作說明如下：
+						<ol>
+							<li>首先，你需要準備一個班級資料檔，其中內容必須包括「課名」、「選課人數上限」、「分發順位」</li>
+							<li>再來，你要準備一個學生資料檔，其中內容必須包括「學號」、「原班級」、「原班級座號」、「姓名」，以及對應的志願順位，其中學號必須是數字，因為電腦輸出的時候要排序</li>
+							<li>指定完欄位對應後，你可以設定選課參數，例如禁止選課黑名單、擋修課名（目前只支援擋一堂課），以及手動分發權值（例如你要用分數來分發，預設值是亂數）</li>
+							<li>都指定好之後，每按一次分發就會分發一次，最後如果有殘餘人數可以用強制分發到還有空的課程</li>
+                            <li>最後可以輸出選課結果，這時請務必同意「允許下載多個檔案」，即可快速匯出（Chrome會把檔案存在你的預設下載資料夾中），打完收工！</li>
+						</ol>
+					</li>
+					<li><i class="fa-li fa fa-table"></i>請注意，本程式需要你將Excel檔案匯出為XML格式，操作方法如下
+						<ol>
+							<li>打開Excel</li>
+							<li>另存成CSV格式，關閉Excel視窗（必須關閉Excel）</li>
+							<li>用Excel打開CSV</li>
+							<li>另存成Excel-XML 2003格式</li>
+							<li>打完收工，如果你再轉存中看到任何提示訊息，全部忽略即可</li>
+						</ol>
+					</li>
+					<li><i class="fa-li fa fa-info-circle" ></i>請注意，電腦彙整資料時，學生數量X志願序後，資料會達到上千筆，載入學生名單時會延遲一兩秒，放輕鬆等他算完即可，因為不論怎麼說都比你自己算好很多</li>
+                    <li><i class="fa-li fa fa-github"></i>你也可以在GitHub上找到本程式的原始碼，或許有的時候會更新版本：<a href="https://github.com/kelunyang/Kelunyang-OfficeToolkit">https://github.com/kelunyang/Kelunyang-OfficeToolkit</a></li>
+				</ul>
+				<p style="text-align: right;">Designer: Kelunyang 2017 CC-BY-NC-SA</p>
+				<p style="text-align: center"><button id="start">我看懂了！開始吧！</button></p>
+			</section>
+            <section id="classconfig">
+                <h1>第一步：選擇課程資料檔</h1>
+                <input type="file" id="coursefile"/>
+                <span class="loading"><i class="fa fa-cog fa-spin" aria-hidden="true"></i>載入中...</span>
+                <ul class="fa-ul">
+					<li id="classfilename"><i class="fa-li fa fa-file-text-o"></i><span></span></li>
+					<li id="classtotalrows"><i class="fa-li fa fa-info-circle"></i><span></span></li>
+					<li id="classconfig"><i class="fa-li fa fa-table"></i>
+                        <span>針對每一堂課的細部設定請先讀入後再設定</span>
+                        <ol>
+                            <li><label>順位欄位：<select id="numfield"></select></label></li>
+                            <li><label>班級欄位：<select id="classfield"></select></label></li>
+                            <li><label>人數限制欄位：<select id="limitfield"></select></label></li>
+                            <li><label>總共要分發<input id="maxallocatedfield" type="number" value="1"></input>次</label></li>
+                        </ol>
+                    </li>
+					<li id="classloadxml"><button id="classanalysis" type="button" disabled>讀取資料</button></li>
+                </ul>
+            </section>
+            <section id="studentconfig">
+                <h1>第二步：選擇學生選課資料檔</h1>
+                <input type="file" id="studentfile"/>
+                <span class="loading"><i class="fa fa-cog fa-spin" aria-hidden="true"></i>載入中...</span>
+                <ul class="fa-ul">
+					<li id="studentfilename"><i class="fa-li fa fa-file-text-o"></i><span></span></li>
+					<li id="studenttotalrows"><i class="fa-li fa fa-info-circle"></i><span></span></li>
+					<li id="studentconfig"><i class="fa-li fa fa-table"></i>
+                        <ol>
+                            <li><label>姓名欄位：<select id="namefield"></select></label></li>
+                            <li><label>學號欄位：<select id="stunofield"></select></label></li>
+                            <li><label>班級欄位：<select id="classnofield"></select></label></li>
+                            <li><label>座號欄位：<select id="seatnofield"></select></label></li>
+                            <li><label>上學期修課欄位：<select id="previousfield"></select></label></li>
+                            <li><fieldset id="rankset"></fieldset></li>
+                        </ol>
+					</li>
+					<li id="classloadxml">
+                        <span>請注意：如果資料過大時可能畫面會鎖死數秒</span><br/>
+                        <button id="studentanalysis" type="button" disabled>讀入選課志願序</button>
+					</li>
+                </ul>
+            </section>
+            <section id="placement">
+                <h1>第三步：開始分發</h1>
+                <ul class="fa-ul">
+					<li id="classloadxml"><i class="fa fa-li fa-download" aria-hidden="true"></i>
+                        <span>以下步驟其實電腦可以一次完成，但避免畫面鎖死太久，每按一步運算一次（如果資料過大時可能畫面還是會鎖死數秒，如該課已滿會標記紅色）</span>
+                        <ol>
+                            <li><button id="banlistanalysis" type="button" disabled>第一步：載入禁止選課名單（沒有就跳過不要設定）</button></li><!-- 還剩這個部分 -->
+                            <li><button id="markanalysis" type="button" disabled>第二步：標記哪些課程有特殊設定</button></li>
+                            <li><button id="limitanalysis" type="button" disabled>第三步：排除擋修和合併志願序</button></li>
+                            <li><button id="placementanalysis" type="button" disabled>第四步：分發（每按一次分發一次）</button></li>
+                            <li><button id="extendplacementanalysis" type="button" disabled>第五步：隨機打散沒有課的人（如果還有人沒課的話）</button></li>
+                            <li><button id="downloadtotal" disabled>輸出選課結果（總表、原班級、選修班級）</button></li>
+                        </ol>
+					</li>
+                    <li><textarea rows="5" cols="100" id="placementmsg" placeholder="分發過程中出現什麼訊息會顯示於此"></textarea></li>
+                </ul>
+            </section>
+        </header>
+        <article>
+            <section id="totaltable"></section>
+        </article>
+        <section id="classDialog">
+            <form id="classForm">
+                <ul>
+                    <li><label><span class="config">未設定</span>擋修課名（不擋修就留空）：<input type="text" id="previousLimit" disabled></input></label></li>
+                    <li><label><span class="config">未設定</span>將前<input type="text" id="blurLimit" disabled></input>個志願序合併（不需要就留空）</label></li>
+                    <li><label><span class="config">未設定</span>手動載入選課權值（留空則權值為亂數）：<input type="file" id="rankSource" disabled></input></label><br/><span id="sourcecount">檔案必須是Excel 2003 XML，格式為「學號」－「權值」（兩欄而已，不需要標題列，權值越大越有優先分發權）</span></li>
+                </ul>
+            </form>
+        </section>
+        <section id="banlistDialog" title="禁止選課名單">
+            <form id="banlistForm">
+                <ul>
+                    <li><label><span class="config">未設定</span>手動載入禁止選課名單：<input type="file" id="banlistSource" disabled></input></label><br/><span id="banlistcount">檔案必須是Excel 2003 XML，格式為「學號」（一欄而已，不需要標題列，只要出現該學號就禁止選課）</span></li>
+                </ul>
+            </form>
+        </section>
+        <footer></footer>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.17.1/moment.min.js"></script>
+		<script>
+        	xmldoc = null;
+			table = null;
+			classtable = null;
+            classes= null;
+			fulldata = null;
+            rankelements = null;
+            dialog = null;
+            banlist = false;
+			$().ready(function() {
+				$("section#intro").css("height", $(document).height()+"px");
+				$("section#classconfig").hide();
+				$("section#studentconfig").hide();
+                $("section#placement").hide();
+				$("input[type=file]").parent().children("ul.fa-ul").hide();
+				$("input[type=file]").parent().children("span.loading").hide();
+				$("button#start").on("click", function() {
+					$("section#intro").hide();
+					$("section#classconfig").show();
+                    $("section#studentconfig").hide();
+                    $("section#placement").hide();
+				});
+                bandialog = $("section#banlistDialog").dialog({
+                    autoOpen: false,
+                    resizable: false,
+                    height: "auto",
+                    width: 400,
+                    modal: true,
+                    buttons: {
+                        "儲存參數": function() {
+                            $(this).dialog("close");
+                        }
+                    },
+                    close: function() {
+                        $("form#banlistForm")[0].reset();
+                        var deletelist = new Array();
+                        if(banlist != false) {
+                            banlist.forEach(function(item) {
+                                $.each(fulldata, function(key, value) {
+                                    if(item == key) {
+                                        deletelist.push(key);
+                                    }
+                                });
+                            });
+                        }
+                        sendlog("掃描禁止選課清單，共"+deletelist.length+"人...");
+                        var str = deletelist.length == 0 ? "沒有找到偷選課的人" : "已找到"+deletelist.length+"人偷偷選課，分別為："+deletelist.join();
+                        sendlog(str);
+                        deletelist.forEach(function(item) {
+                            delete fulldata[item];
+                        });
+                    },
+                    open: function() {
+                        if($(this).data("obj") != false) {
+                            $("span#banlistcount").text("已載入"+Object.keys($("section#banlistDialog").data("obj")).length+"筆資料");
+                            var reset = $("<button>重設權值</button>");
+                            reset.on("click", function() {
+                                $("section#banlistDialog").data("obj",false);
+                                dialog.dialog("close");
+                                dialog.dialog("open");
+                            });
+                            $("span#banlistcount").append(reset);
+                            $($("input#banlistSource").parent().children("span.config")[0]).text("已設定");
+                            $($("input#banlistSource").parent().children("span.config")[0]).removeClass("unConfig");
+                            $($("input#banlistSource").parent().children("span.config")[0]).addClass("doneConfig");
+                        } else {
+                            $("span#banlistcount").text("檔案必須是Excel 2003 XML，格式為「學號」（一欄而已，不需要標題列，只要出現該學號就禁止選課）");
+                            $($("input#banlistSource").parent().children("span.config")[0]).text("未設定");
+                            $($("input#banlistSource").parent().children("span.config")[0]).removeClass("doneConfig");
+                            $($("input#banlistSource").parent().children("span.config")[0]).addClass("unConfig");
+                        }
+                    }
+                });
+                dialog = $("section#classDialog").dialog({
+                    autoOpen: false,
+                    resizable: false,
+                    height: "auto",
+                    width: 400,
+                    modal: true,
+                    buttons: {
+                        "儲存參數": function() {
+                            $(this).dialog("close");
+                        }
+                    },
+                    close: function() {
+                        $(this).data("obj").previousLimit = $("input#previousLimit").val() == "" ? false : $("input#previousLimit").val();
+                        $(this).data("obj").blurLimit = $("input#blurLimit").val() == "" ? false : $("input#blurLimit").val();
+                        $("form#classForm")[0].reset();
+                    },
+                    open: function() {
+                        if($(this).data("obj").previousLimit != false) {
+                            $("input#previousLimit").val($(this).data("obj").previousLimit);
+                            $($("input#previousLimit").parent().children("span.config")[0]).text("已設定");
+                            $($("input#previousLimit").parent().children("span.config")[0]).removeClass("unConfig");
+                            $($("input#previousLimit").parent().children("span.config")[0]).addClass("doneConfig");
+                        } else {
+                            $($("input#previousLimit").parent().children("span.config")[0]).text("未設定");
+                            $($("input#previousLimit").parent().children("span.config")[0]).removeClass("doneConfig");
+                            $($("input#previousLimit").parent().children("span.config")[0]).addClass("unConfig");
+                        }
+                        if($(this).data("obj").blurLimit != false) {
+                            $("input#blurLimit").val($(this).data("obj").blurLimit);
+                            $($("input#blurLimit").parent().children("span.config")[0]).text("已設定");
+                            $($("input#blurLimit").parent().children("span.config")[0]).removeClass("unConfig");
+                            $($("input#blurLimit").parent().children("span.config")[0]).addClass("doneConfig");
+                        } else {
+                            $($("input#blurLimit").parent().children("span.config")[0]).text("未設定");
+                            $($("input#blurLimit").parent().children("span.config")[0]).removeClass("doneConfig");
+                            $($("input#blurLimit").parent().children("span.config")[0]).addClass("unConfig");
+                        }
+                        if($(this).data("obj").rankSource != false) {
+                            $("span#sourcecount").text("已載入"+Object.keys($("section#classDialog").data("obj").rankSource).length+"筆資料");
+                            var reset = $("<button>重設權值</button>");
+                            reset.on("click", function() {
+                                $("section#classDialog").data("obj").rankSource = false;
+                                $("section#classDialog").attr("title",$("section#classDialog").data("obj").name);
+                                dialog.dialog("close");
+                                dialog.dialog("open");
+                            });
+                            $("span#sourcecount").append(reset);
+                            $($("input#rankSource").parent().children("span.config")[0]).text("已設定");
+                            $($("input#rankSource").parent().children("span.config")[0]).removeClass("unConfig");
+                            $($("input#rankSource").parent().children("span.config")[0]).addClass("doneConfig");
+                        } else {
+                            $("span#sourcecount").text("檔案必須是Excel 2003 XML，格式為「學號」－「權值」（兩欄而已，不需要標題列，權值越大越有優先分發權）");
+                            $($("input#rankSource").parent().children("span.config")[0]).text("未設定");
+                            $($("input#rankSource").parent().children("span.config")[0]).removeClass("doneConfig");
+                            $($("input#rankSource").parent().children("span.config")[0]).addClass("unConfig");
+                        }
+                    }
+                });
+                $("input#coursefile").on("change", function() {
+                    var oriobj = this;
+                    $(oriobj).parent().children("span.loading").show();
+                    if(this.files[0].type.match("text/xml")) {
+                        $("li#classfilename>span").text("讀取的檔名為："+this.files[0].name);
+						var reader = new FileReader();
+						reader.onload = function(e) {
+                            try {
+								$("section#totaltable").empty();
+								xmldoc = $.parseXML(reader.result);
+								var xml = $(xmldoc);
+								var worksheets = xml.find("Worksheet");
+								var rows = xml.find("Row");
+								var logger = 0;
+								var classcolumn = 0;
+                                $("li#classtotalrows>span").text("該檔案總列數為："+rows.length+"列");
+								$(oriobj).parent().children("span.loading").hide();
+								$(oriobj).parent().children("ul.fa-ul").show();
+								$("select#classfield").empty();
+                                $("select#numfield").empty();
+                                $("select#limitfield").empty();
+								$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+									$("select#classfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+									$("select#numfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    $("select#limitfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+									classcolumn++;
+								});
+                                $("button#classanalysis").attr("disabled", false);
+                                $("button#classanalysis").off();
+                                $("button#classanalysis").on("click", function() {
+                                    $("section#intro").hide();
+                                    $("section#classconfig").hide();
+                                    $("section#studentconfig").show();
+                                    $("section#placement").hide();
+                                    logger = 0;
+                                    var classfieldval = parseInt($( "select#classfield option:selected" ).val(),10);
+                                    var limitfieldval = parseInt($( "select#limitfield option:selected" ).val(),10);
+                                    var numfieldval = parseInt($( "select#numfield option:selected" ).val(),10);
+                                    var maxfieldval = parseInt($("input#maxallocatedfield").val(),10);
+									$("section#totaltable").empty();
+									classes = new Object();
+									classtable = $("<table id='classtable'></table>");
+									var thead = $("<thead></thead>");
+                                    var th = $("<tr></tr>");
+									$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+										var td = $("<th>"+value.textContent+"</th>");
+										th.append(td);
+									});
+                                    //setting field
+                                    rankelements = new Array();
+                                    $("fieldset#rankset").empty();
+                                    $("fieldset#rankset").append("<legend>志願欄位</legend>");
+                                    var settingth = $("<th>&nbsp;</th>");
+                                    th.append(settingth);
+                                    for(var i=1;i<=maxfieldval;i++) {
+										var td = $("<th>第"+i+"次</th>");
+										th.append(td);
+                                        var rank = $("<label>第"+i+"個志願欄位</label>");
+                                        var rankelement = $("<select></select>");
+                                        rank.append(rankelement);
+                                        rank.append("<br/>");
+                                        $("fieldset#rankset").append(rank);
+                                        rankelements.push(rank);
+                                    }
+                                    thead.append(th);
+									classtable.append(thead);
+                                    var tbody = $("<tbody></tbody>");
+									$.each(rows, function(key, value) {
+										logger++;
+										if(logger > 1) {
+											var columnlog = 0;
+											var tr = $("<tr></tr>");
+                                            classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent] = new classdata($(value).find("Cell>Data").eq(numfieldval)[0].textContent,$(value).find("Cell>Data").eq(classfieldval)[0].textContent,$(value).find("Cell>Data").eq(limitfieldval)[0].textContent,tr);
+                                            classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent].totalfields = new Array();
+                                            classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent].setRange(maxfieldval);
+											$.each($(value).find("Cell>Data"), function(key, value) {
+												var td = $("<td>"+value.textContent+"</td>");
+												tr.append(td);
+												columnlog++;
+											});
+                                            var settingbtn = $("<button>設定參數</button>");
+                                            settingbtn.data("obj", classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent]);
+                                            settingbtn.on("click",function() {
+                                                dialog.data("obj",$(this).data("obj"));
+                                                dialog.dialog('option', 'title',$("section#classDialog").data("obj").name);
+                                                dialog.dialog("open");
+                                            });
+                                            var settingtd = $("<td></td>");
+                                            settingtd.append(settingbtn);
+                                            tr.append(settingtd);
+                                            for(var i=1;i<=maxfieldval;i++) {
+                                                var td = $("<td>&nbsp;</td>");
+                                                classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent].totalfields.push(td);
+                                                tr.append(td);
+                                            }
+                                            tbody.append(tr);
+                                        }
+									});
+                                    classtable.append(tbody);
+									$("section#totaltable").append(classtable);
+                                });
+                                $("input#previousLimit").attr("disabled", false);
+                                $("input#blurLimit").attr("disabled", false);
+                                $("input#rankSource").attr("disabled", false);
+                                $("input#rankSource").off();
+                                $("input#rankSource").on("change", function() {
+                                    if(this.files[0].type.match("text/xml")) {
+                                        var reader = new FileReader();
+                                        reader.onload = function(e) {
+                                            try {
+                                                $("span#sourcecount").empty();
+                                                var xmldoc = $.parseXML(reader.result);
+                                                var xml = $(xmldoc);
+                                                var worksheets = xml.find("Worksheet");
+                                                var rows = xml.find("Row");
+                                                $("section#classDialog").data("obj").rankSource = new Object();
+                                                $.each(rows, function(key, value) {
+                                                    $("section#classDialog").data("obj").rankSource[$(value).find("Cell>Data").eq(0)[0].textContent] = $(value).find("Cell>Data").eq(1)[0].textContent;
+                                                });
+                                                dialog.dialog("close");
+                                                dialog.dialog("open");
+                                            } catch(e) {
+                                                $("span#sourcecount").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+                                            }
+                                        }
+                                        reader.readAsText(this.files[0]); 
+                                    } else {
+                                        $("span#sourcecount").text("請選擇Excel 2003 XML檔案！");
+                                    }
+                                });
+                            } catch(e) {
+                                $("li#classtotalrows>span").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+                            }
+                        }
+                        reader.readAsText(this.files[0]); 
+                    } else {
+                        $("li#classfilename>span").text("請選擇Excel 2003 XML檔案！");
+                    }
+                });
+                $("input#studentfile").on("change", function() {
+                    var oriobj = this;
+                    $(oriobj).parent().children("span.loading").show();
+                    if(this.files[0].type.match("text/xml")) {
+                        $("li#studentfilename>span").text("讀取的檔名為："+this.files[0].name);
+						var reader = new FileReader();
+						reader.onload = function(e) {
+                            try {
+								xmldoc = $.parseXML(reader.result);
+								var xml = $(xmldoc);
+								var worksheets = xml.find("Worksheet");
+								var rows = xml.find("Row");
+								var logger = 0;
+								var classcolumn = 0;
+                                $("li#studenttotalrows>span").text("該檔案總列數為："+rows.length+"列");
+								$(oriobj).parent().children("span.loading").hide();
+								$(oriobj).parent().children("ul.fa-ul").show();
+								$("select#namefield").empty();
+                                $("select#stunofield").empty();
+                                $("select#classnofield").empty();
+                                $("select#seatnofield").empty();
+                                $("select#previousfield").empty();
+                                $.each(rankelements, function(key,ele) {
+                                    $($(ele).children("select")[0]).empty();
+                                });
+								$.each($(rows[0]).find("Cell>Data"),function(key, value) {
+									$("select#namefield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+									$("select#stunofield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    $("select#classnofield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    $("select#seatnofield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    $("select#previousfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    $.each(rankelements, function(key,ele) {
+                                        $($(ele).children("select")[0]).append($("<option></option>").attr("value", classcolumn).text(value.textContent));
+                                    });
+									classcolumn++;
+								});
+                                $("button#studentanalysis").attr("disabled", false);
+                                $("button#studentanalysis").off();
+                                $("button#studentanalysis").on("click", function() {
+                                    $("section#intro").hide();
+                                    $("section#classconfig").hide();
+                                    $("section#studentconfig").hide();
+                                    $("section#placement").show();
+                                    logger = 0;
+                                    var namefieldval = parseInt($( "select#namefield option:selected" ).val(),10);
+                                    var stunofieldval = parseInt($( "select#stunofield option:selected" ).val(),10);
+                                    var classnofieldval = parseInt($( "select#classnofield option:selected" ).val(),10);
+                                    var seatnofieldval = parseInt($( "select#seatnofield option:selected" ).val(),10);
+                                    var previousfieldval = parseInt($( "select#previousfield option:selected" ).val(),10);
+                                    var maxfieldval = parseInt($("input#maxallocatedfield").val(),10);
+                                    fulldata = new Object();
+									$.each(rows, function(key, value) {
+										logger++;
+										if(logger > 1) {
+                                            var rankcount = 0;
+											var tr = $("<tr></tr>");
+                                            var std = new studentdata($(value).find("Cell>Data").eq(namefieldval)[0].textContent,$(value).find("Cell>Data").eq(stunofieldval)[0].textContent,$(value).find("Cell>Data").eq(classnofieldval)[0].textContent,$(value).find("Cell>Data").eq(seatnofieldval)[0].textContent,$(value).find("Cell>Data").eq(previousfieldval)[0].textContent);
+                                            fulldata[$(value).find("Cell>Data").eq(stunofieldval)[0].textContent] = std;
+											$.each(rankelements, function(key, ele) {
+                                                var rank = parseInt($($(ele).children("select")[0]).val(),10);
+                                                classes[$(value).find("Cell>Data").eq(rank)[0].textContent].data[rankcount].push($(value).find("Cell>Data").eq(stunofieldval)[0].textContent);
+                                                rankcount++;
+											});
+                                            
+                                        }
+									});
+                                    $.each(classes, function(key,value) {
+                                        for(var i=0;i<maxfieldval;i++) {
+                                            value.buildTotal(i);
+                                        }
+                                    });
+                                    $("button#banlistanalysis").attr("disabled", false);
+                                    $("button#banlistanalysis").off();
+                                    $("button#banlistanalysis").on("click", function() {
+                                        bandialog.data("obj",banlist).dialog("open");
+                                        $("input#banlistSource").attr("disabled", false);
+                                        $("input#banlistSource").off();
+                                        $("input#banlistSource").on("change", function() {
+                                            if(this.files[0].type.match("text/xml")) {
+                                                var reader = new FileReader();
+                                                reader.onload = function(e) {
+                                                    try {
+                                                        $("span#banlistcount").empty();
+                                                        var xmldoc = $.parseXML(reader.result);
+                                                        var xml = $(xmldoc);
+                                                        var worksheets = xml.find("Worksheet");
+                                                        var rows = xml.find("Row");
+                                                        $("section#banlistDialog").data("obj", new Array());
+                                                        $.each(rows, function(key, value) {
+                                                            $("section#banlistDialog").data("obj").push($(value).find("Cell>Data").eq(0)[0].textContent);
+                                                        });
+                                                        bandialog.dialog("close");
+                                                        bandialog.dialog("open");
+                                                    } catch(e) {
+                                                        $("span#banlistcount").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+                                                    }
+                                                }
+                                                reader.readAsText(this.files[0]); 
+                                            } else {
+                                                $("span#banlistcount").text("請選擇Excel 2003 XML檔案！");
+                                            }
+                                        });
+                                    });
+                                    $("button#markanalysis").attr("disabled", false);
+                                    $("button#limitanalysis").attr("disabled", false);
+                                    $("button#placementanalysis").attr("disabled", false);
+                                    $("button#downloadtotal").attr("disabled", false);
+                                    $("button#downloadtotal").off();
+                                    $("button#downloadtotal").on("click", function() {
+                                        var printdate = moment().format("YYYYMMDD");
+                                        var oriclassnoArr = new Array();
+                                        var optclassnoArr = new Array();
+                                        var tempdata = new Array();
+                                        $.each(fulldata, function(key, value) {
+                                            tempdata.push(value);
+                                            oriclassnoArr.push(value.classno);
+                                            optclassnoArr.push(value.result);
+                                        });
+                                        tempdata.sort(function(a,b) {
+                                            return parseInt(a.studentio,10) - parseInt(b.studentio,10);
+                                        });
+                                        $.unique(oriclassnoArr);
+                                        $.unique(optclassnoArr);
+										output = "\ufeff";
+                                        output += "學號,班級,座號,姓名,分發結果\r";
+                                        tempdata.forEach(function(item) {
+                                            output += item.getRow(0)+"\r";
+                                        });
+										var download = $("<a></a>");
+										download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+										download.attr("download", "學生總表("+printdate+").csv");
+										download.css("display","none");
+										$("footer").append(download);
+										download[0].click();
+										$("footer").empty();
+                                        var tmpClassArr = null;
+                                        oriclassnoArr.forEach(function(cls) {
+                                            tmpClassArr = new Array();
+                                            output = "\ufeff";
+                                            output += "座號,姓名,分發結果\r";
+                                            tempdata.forEach(function(stu) {
+                                                if(cls == stu.classno) {
+                                                    tmpClassArr.push(stu);
+                                                }
+                                            });
+                                            tmpClassArr.sort(function(a,b) {
+                                                return parseInt(a.seatno,10) - parseInt(b.seatno,10);
+                                            });
+                                            tmpClassArr.forEach(function(item) {
+                                                output += item.getRow(1)+"\r";
+                                            });
+                                            var download = $("<a></a>");
+                                            download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+                                            download.attr("download", cls+"班選課結果("+printdate+").csv");
+                                            download.css("display","none");
+                                            $("footer").append(download);
+                                            download[0].click();
+                                            $("footer").empty();
+                                        });
+                                        optclassnoArr.forEach(function(cls) {
+                                            tmpClassArr = new Array();
+                                            output = "\ufeff";
+                                            output += "序號,學號,班級,座號,姓名\r";
+                                            tempdata.forEach(function(stu) {
+                                                if(cls == stu.result) {
+                                                    tmpClassArr.push(stu);
+                                                }
+                                            });
+                                            tmpClassArr.sort(function(a,b) {
+                                                return parseInt(a.studentio,10) - parseInt(b.studentio,10);
+                                            });
+                                            var id = 1;
+                                            tmpClassArr.forEach(function(item) {
+                                                output += id+","+item.getRow(2)+"\r";
+                                                id++;
+                                            });
+                                            var download = $("<a></a>");
+                                            download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+                                            download.attr("download", "選修"+cls+"班級點名單("+printdate+").csv");
+                                            download.css("display","none");
+                                            $("footer").append(download);
+                                            download[0].click();
+                                            $("footer").empty();
+                                        });
+                                    });
+                                    $("button#markanalysis").off();
+                                    $("button#markanalysis").on("click", function() {
+                                        $.each(classes, function(key, value) {
+                                            value.limitCheck();
+                                        });
+                                    });
+                                    $("button#limitanalysis").off();
+                                    $("button#limitanalysis").on("click", function() {
+                                        $.each(classes, function(key, value) {
+                                            value.executePrevious();
+                                            value.executeBlur();
+                                            for(var i=0;i<maxfieldval;i++) {
+                                                value.buildTotal(i);
+                                            }
+                                        });
+                                    });
+                                    var times = 0;
+                                    var classArr = null;
+                                    $("button#placementanalysis").off();
+                                    $("button#placementanalysis").on("click", function() {
+                                        classArr = new Array();
+                                        if(times < maxfieldval) {
+                                            $.each(classes, function(key, value) {
+                                                classArr.push(value);
+                                            });
+                                            classArr.sort(function(a,b) {
+                                                return a.rank - b.rank;
+                                            });
+                                            classArr.forEach(function(value) {
+                                                value.executeRank(times);
+                                                value.executePlacement(times);
+                                                value.buildTotal(times);
+                                            });
+                                            classArr.forEach(function(item) {
+                                                sendlog(item.name+"：已選"+item.selected.length+"人");
+                                            });
+                                            times++;
+                                            var fulldataCount = 0;
+                                            $.each(fulldata, function(key, value) {
+                                                if(value.result === false) {
+                                                    fulldataCount++;
+                                                }
+                                            });
+                                            sendlog("第"+times+"次分發：學生名單中剩餘"+fulldataCount+"人沒有分發到課");
+                                            if(maxfieldval == times) {
+                                                if(fulldataCount > 0) {
+                                                    sendlog("還有"+fulldataCount+"人沒有分發完成，請使用隨機打散分發");
+                                                    $("button#extendplacementanalysis").attr("disabled", false);
+                                                    $("button#extendplacementanalysis").off();
+                                                    $("button#extendplacementanalysis").on("click", function() {
+                                                        classArr = new Array();
+                                                        $.each(classes, function(key, value) {
+                                                            classArr.push(value);
+                                                        });
+                                                        var remainArr = new Array();
+                                                        classArr.forEach(function(item) {
+                                                            if(item.limit - item.selected.length > 0) {
+                                                                remainArr.push(item);
+                                                            }
+                                                        });
+                                                        var remainstu = new Array();
+                                                        $.each(fulldata, function(key, value) {
+                                                            if(value.result === false) {
+                                                                remainstu.push(value);
+                                                            }
+                                                        });
+                                                        var remaincount = 0;
+                                                        remainstu.forEach(function(stu) {
+                                                            remainArr.forEach(function(item) {
+                                                                item.selectClass(stu);
+                                                            });
+                                                            if(stu.result === false) {
+                                                                remaincount++;
+                                                            }
+                                                        });
+                                                        classArr.forEach(function(item) {
+                                                            sendlog(item.name+"：已選"+item.selected.length+"人");
+                                                        });
+                                                        if(remaincount > 0) {
+                                                            sendlog("所有的剩餘額度都用完了，但還有"+remaincount+"人沒有分發完成，請將檔案輸出後手工處理");
+                                                        } else {
+                                                            sendlog("分發剩餘"+remaincount+"人沒有分發完成，可以輸出檔案");
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        } else {
+                                            sendlog("已經達到最高志願數分發上限");
+                                        }
+                                    });
+                                });
+                            } catch(e) {
+                                $("li#studenttotalrows>span").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+                            }
+                        }
+                        reader.readAsText(this.files[0]); 
+                    } else {
+                        $("li#studentfilename>span").text("請選擇Excel 2003 XML檔案！");
+                    }
+                });
+            });
+            function sendlog(msg) {
+                var textarea = $("textarea#placementmsg");
+                textarea.val($("textarea#placementmsg").val()+msg+"\r");
+                textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+            }
+            class classdata {
+                constructor(rank, name, limit,element) {
+                    this.rank = rank;
+                    this.name = name;
+                    this.limit = limit;
+                    this.element = element;
+                    this.data = null;
+                    this.totalfields = new Array();
+                    this.previousLimit = false;
+                    this.blurLimit = false;
+                    this.rankSource = false;
+                    this.selected = new Array();
+                }
+                setRange(num) {
+                    this.data = new Array(num);
+                    for(var i=0;i<this.data.length;i++) {
+                        this.data[i] = new Array();
+                    }
+                }
+                executePrevious() {
+                    var oriobj = this;
+                    if(this.previousLimit != false) {
+                        for(var i=0;i<this.data.length;i++) {
+                            var dataArr = new Array();
+                            $.each(this.data[i], function(key,number) {
+                                var value = fulldata[number];
+                                if(value.previous != oriobj.previousLimit) {
+                                    dataArr.push(number);
+                                } else {
+                                    sendlog("發現擋修！"+value.studentio+"在"+oriobj.name+"第"+(i+1)+"志願已修過"+oriobj.previousLimit);
+                                }
+                            });
+                            this.data[i] = dataArr;
+                        }
+                    }
+                }
+                executeBlur() {
+                    var oriobj = this;
+                    if(this.blurLimit != false) {
+                        var blurLimit = this.blurLimit > this.data.length ? this.data.length : this.blurLimit;
+                        blurLimit = parseInt(blurLimit,10);
+                        var namelist = new Object();
+                        for(var i=0;i<blurLimit;i++) {
+                            for(var k=0;k<this.data[i].length;k++) {
+                                namelist[this.data[i][k]] = this.data[i][k];
+                            }
+                            if(i != 0) {    //reset other data
+                                this.data[i] = new Array();
+                            }
+                        }
+                        this.data[0] = new Array(); //把全部加入第一個志願
+                        $.each(namelist, function(key,value) {
+                            oriobj.data[0].push(value);
+                        });
+                        sendlog(this.name+"的志願序1-"+blurLimit+"內所有學生已合併");
+                    }
+                }
+                executeRank(rank) {
+                    var oriobj = this;
+                    if(this.rankSource != false) {
+                        this.data[rank].sort(function(a, b) {
+                            return oriobj.rankSource[b] - oriobj.rankSource[a];
+                        });
+                    } else {
+                        this.data[rank].sort(function() {
+                            return 0.5 - Math.random();
+                        }); //隨機排序
+                    }
+                }
+                executePlacement(rank) {
+                    sendlog("正在執行"+this.name+"的第"+(rank+1)+"次分發");
+                    var oriobj = this;
+                    var count = 0;
+                    $.each(this.data[rank], function(key, num) {
+                        var value = fulldata[num];
+                        oriobj.selectClass(value);
+                        if(value.result === false) {
+                            count++;
+                        }
+                    });
+                    sendlog(this.name+"第"+(rank+1)+"次分發有"+count+"人沒有分發到");
+                }
+                selectClass(student) {
+                    if(student.result === false) {
+                        if(this.limit > this.selected.length) {
+                            student.result = this.name;
+                            this.selected.push(student.studentio);
+                        }
+                    }
+                }
+                buildTotal(rank) {
+                    var count = 0;
+                    for(var i=0;i<this.data[rank].length;i++) {
+                        if(fulldata[this.data[rank][i]].result === false) {
+                            count++;
+                        }
+                    }
+                    this.totalfields[rank].text(count);
+                    if(this.selected.length == this.limit) {
+                        $(this.element).css("backgroundColor","#FCF");
+                        sendlog(this.name+"選課人數達到上限！");
+                    }
+                }
+                limitCheck() {
+                    var limit = new Array();
+                    if(this.previousLimit != false) {
+                        limit.push("擋修")
+                    }
+                    if(this.blurLimit != false) {
+                        limit.push("合併志願序");
+                    }
+                    if(this.rankSource != false) {
+                        limit.push("自訂權值");
+                    }
+                    if(limit.length != 0) {
+                        $(this.element).css("backgroundColor","#EEE");
+                        sendlog(this.name+"有設定條件："+limit.join());
+                    } else {
+                        $(this.element).css("backgroundColor","#FFF");
+                    }
+                }
+            }
+            class studentdata {
+                constructor(name, studentio, classno, seatno, previous) {
+                    this.name = name;
+                    this.studentio = studentio;
+                    this.classno = classno;
+                    this.seatno = seatno;
+                    this.previous = previous;
+                    this.result = false;
+                }
+                getRow(type) {
+                    var str = "";
+                    switch(type) {
+                        case 0:
+                            str = this.studentio+","+this.classno+","+this.seatno+","+this.name+","+this.result;
+                        break;
+                        case 1:
+                            str = this.seatno+","+this.name+","+this.result;
+                        break;
+                        case 2:
+                            str = this.studentio+","+this.classno+","+this.seatno+","+this.name;
+                        break;
+                    }
+                    return str;
+                }
+            }
+        </script>
+    </body>
+</html>

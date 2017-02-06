@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 	<head>
-		<title>特課整理</title>
+		<title>Excel快速整理歸檔工具</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
 		<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
 		<style type="text/css">
 			.hideTR {
 				display: none;
@@ -45,10 +46,10 @@
 		<header>
 			<section id="intro">
 				<h1>程式使用說明</h1>
-				<ul>
-					<li>請使用Google Chrome瀏覽器，並且確認你的網路是通暢的</li>
-					<li>本程式可以快速歸類Google問卷或任何Excel整理過的大量資料</li>
-					<li>操作說明如下：
+				<ul class="fa-ul">
+					<li><i class="fa-li fa fa-chrome"></i>請使用Google Chrome瀏覽器，並且確認你的網路是通暢的</li>
+					<li><i class="fa-li fa fa-wpforms"></i>本程式可以快速歸類Google問卷或任何Excel整理過的大量資料</li>
+					<li><i class="fa-li fa fa-list-ol"></i>操作說明如下：
 						<ol>
 							<li>首先，你需要準備一個班級資料檔，開啟之後你可以再指定班級欄位和總人數欄位是哪一個</li>
 							<li>再來，你可以拿你手上有的問卷資料檔，欄位順序沒差，但必須有一個欄位和班級資料檔中的「班級名稱」一模一樣（不然電腦也不知道該怎麼整理）</li>
@@ -56,7 +57,7 @@
 							<li>電腦統計完之後，你可以按下「輸出結果」，取得電腦分析和歸檔的結果，這時請務必同意「允許下載多個檔案」，即可快速匯出（Chrome會把檔案存在你的預設下載資料夾中），打完收工！</li>
 						</ol>
 					</li>
-					<li>請注意，本程式需要你將Excel檔案匯出為XML格式，操作方法如下
+					<li><i class="fa-li fa fa-table"></i>請注意，本程式需要你將Excel檔案匯出為XML格式，操作方法如下
 						<ol>
 							<li>打開Excel</li>
 							<li>另存成CSV格式，關閉Excel視窗（必須關閉Excel）</li>
@@ -65,28 +66,31 @@
 							<li>打完收工，如果你再轉存中看到任何提示訊息，全部忽略即可</li>
 						</ol>
 					</li>
-					<li>請注意，電腦彙整資料時，當資料超過2000筆，畫面可能會暫停一兩秒，放輕鬆等他算完即可，因為不論怎麼說都比你自己算好很多</li>
+					<li><i class="fa-li fa fa-info-circle" ></i>請注意，電腦彙整資料時，當資料超過2000筆，畫面可能會暫停一兩秒，放輕鬆等他算完即可，因為不論怎麼說都比你自己算好很多</li>
+					<li><i class="fa-li fa fa-github"></i>你也可以在GitHub上找到本程式的原始碼，或許有的時候會更新版本：<a href="https://github.com/kelunyang/Kelunyang-OfficeToolkit">https://github.com/kelunyang/Kelunyang-OfficeToolkit</a></li>
 				</ul>
-				<p style="text-align: right;">Designer: Kelunyang 2017 CC-BY-NC-SA</p>
+				<p style="text-align: right;">Designer: <a href="mailto:kelunyang@outlook.com">Kelunyang</a> 2017 CC-BY-NC-SA</p>
 				<p style="text-align: center"><button id="start">我看懂了！開始吧！</button></p>
 			</section>
 			<section id="classdb">
 				<h1>第一步：請選擇班級資料檔（Excel 2003 XML格式）</h1>
 				<input type="file" id="classfile"/>
-				<ul>
-					<li id="classfilename"></li>
-					<li id="classtotalrows"></li>
-					<li id="classconfig"><label>班級欄位：<select id="classfield"></select></label><br/><label><input id="caculateRate" type="checkbox">計算填寫率</input><span id="totalcount" style="margin-left:30px">總人數欄位：<select id="totalField"></select></span></label></li>
+				<span class="loading"><i class="fa fa-cog fa-spin" aria-hidden="true"></i>載入中...</span>
+				<ul class="fa-ul">
+					<li id="classfilename"><i class="fa-li fa fa-file-text-o"></i><span></span></li>
+					<li id="classtotalrows"><i class="fa-li fa fa-info-circle"></i><span></span></li>
+					<li id="classconfig"><i class="fa-li fa fa-table"></i><label>班級欄位：<select id="classfield"></select></label><br/><label><input id="caculateRate" type="checkbox">計算填寫率</input><span id="totalcount" style="margin-left:30px">總人數欄位：<select id="totalField"></select></span></label></li>
 					<li id="classloadxml"><button id="classanalysis" type="button" disabled>開始分析</button><button id="downloadtotal" disabled>輸出總表</button></li>
 				</ul>
 			</section>
 			<section id="analysisresult">
 				<h1>第二步：請選擇問卷結果檔（Excel 2003 XML格式）</h1>
 				<input type="file" id="originalfile"/>
-				<ul>
-					<li id="filename"></li>
-					<li id="totalrows"></li>
-					<li id="dataconfig"><label>班級欄位：<select id="classlocation"></select></label><br/><label>不可重複欄位：<select id="uidlocation"></select></label></li>
+				<span class="loading"><i class="fa fa-cog fa-spin" aria-hidden="true"></i>載入中...</span>
+				<ul class="fa-ul">
+					<li id="filename"><i class="fa-li fa fa-file-text-o"></i><span></span></li>
+					<li id="totalrows"><i class="fa-li fa fa-info-circle"></i><span></span></li>
+					<li id="dataconfig"><i class="fa-li fa fa-table"></i><label>班級欄位：<select id="classlocation"></select></label><br/><label>不可重複欄位：<select id="uidlocation"></select></label></li>
 					<li id="loadxml"><button id="analysis" type="button" disabled>開始分析</button><button id="downloadfiles" disabled>輸出所有班級的回覆</button></li>
 				</ul>
 			</section>
@@ -112,6 +116,8 @@
 				$("section#intro").css("height", $(document).height()+"px");
 				$("section#classdb").hide();
 				$("section#analysisresult").hide();
+				$("input[type=file]").parent().children("ul.fa-ul").hide();
+				$("input[type=file]").parent().children("span.loading").hide();
 				$("button#start").on("click", function() {
 					$("section#intro").hide();
 					$("section#classdb").show();
@@ -129,8 +135,10 @@
 					}
 				});
 				$("input#classfile").on("change", function() {
+					var oriobj = this;
+					$(oriobj).parent().children("span.loading").show();
 					$("li#datafilter").hide();
-					$("li#classfilename").text("讀取的檔名為："+this.files[0].name);
+					$("li#classfilename>span").text("讀取的檔名為："+this.files[0].name);
 					if(this.files[0].type.match("text/xml")) {
 						var reader = new FileReader();
 						reader.onload = function(e) {
@@ -154,7 +162,9 @@
 									});
 									classcolumn++;
 								});
-								$("li#classtotalrows").text("該檔案總列數為："+rows.length+"列");
+								$("li#classtotalrows>span").text("該檔案總列數為："+rows.length+"列");
+								$(oriobj).parent().children("span.loading").hide();
+								$(oriobj).parent().children("ul.fa-ul").show();
 								$("button#classanalysis").attr("disabled", false);
 								$("button#classanalysis").on("click",function() {
 									logger = 0;
@@ -218,17 +228,19 @@
 								});
 							} catch(e) {
 								$("button#classanalysis").attr("disabled", true);
-								$("li#classtotalrows").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+								$("li#classtotalrows>span").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
 							}
 						}
 						reader.readAsText(this.files[0]); 
 					} else {
 						$("button#classanalysis").attr("disabled", true);
-						$("li#classtotalrows").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
+						$("li#classtotalrows>span").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
 					}
 				});
 				$("input#originalfile").on("change", function() {
-					$("li#filename").text("讀取的檔名為："+this.files[0].name);
+					var oriobj = this;
+					$(oriobj).parent().children("span.loading").show();
+					$("li#filename>span").text("讀取的檔名為："+this.files[0].name);
 					if(this.files[0].type.match("text/xml")) {
 						var reader = new FileReader();
 						reader.onload = function(e) {
@@ -250,7 +262,9 @@
 									});
 									columnlog++;
 								});
-								$("li#totalrows").text("該檔案總列數為："+rows.length+"列，請記得刪除第一列的空白列，並將檔案空格補0後，開始分析");
+								$("li#totalrows>span").text("該檔案總列數為："+rows.length+"列，請記得刪除第一列的空白列，並將檔案空格補0後，開始分析");
+								$(oriobj).parent().children("span.loading").hide();
+								$(oriobj).parent().children("ul.fa-ul").show();
 								$("button#analysis").attr("disabled", false);
 								$("button#analysis").on("click", function() {
 									classnames = new Array();
@@ -332,13 +346,13 @@
 								});
 							} catch(e) {
 								$("button#analysis").attr("disabled", true);
-								$("li#totalrows").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
+								$("li#totalrows>span").text("檔案讀取錯誤！請記得將檔案先匯出成csv再轉存成Excel 2003 XML避免格式混亂");
 							}
 						}
 						reader.readAsText(this.files[0]); 
 					} else {
 						$("button#analysis").attr("disabled", true);
-						$("li#totalrows").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
+						$("li#totalrows>span").text("檔案格式錯誤！請記得將檔案匯出成Excel 2003 XML格式");
 					}
 				});
 				$("button#startfilter").on("click", function() {
