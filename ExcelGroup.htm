@@ -136,7 +136,7 @@
 				});
 				$("input#classfile").on("change", function() {
 					var oriobj = this;
-					$(oriobj).parent().children("span.loading").show();
+					$(oriobj).next("span.loading").show();
 					$("li#datafilter").hide();
 					$("li#classfilename>span").text("讀取的檔名為："+this.files[0].name);
 					if(this.files[0].type.match("text/xml")) {
@@ -153,6 +153,7 @@
 								var classcolumn = 0;
 								classcolumnnames = new Array();
 								$("select#classfield").empty();
+								$("select#totalField").empty();
 								$.each($(rows[0]).find("Cell>Data"),function(key, value) {
 									$("select#classfield").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
 									$("select#totalField").append($("<option></option>").attr("value", classcolumn).text(value.textContent));
@@ -163,8 +164,8 @@
 									classcolumn++;
 								});
 								$("li#classtotalrows>span").text("該檔案總列數為："+rows.length+"列");
-								$(oriobj).parent().children("span.loading").hide();
-								$(oriobj).parent().children("ul.fa-ul").show();
+								$(oriobj).next("span.loading").hide();
+								$(oriobj).next().next("ul.fa-ul").show();
 								$("button#classanalysis").attr("disabled", false);
 								$("button#classanalysis").on("click",function() {
 									logger = 0;
@@ -239,7 +240,7 @@
 				});
 				$("input#originalfile").on("change", function() {
 					var oriobj = this;
-					$(oriobj).parent().children("span.loading").show();
+					$(oriobj).next("span.loading").show();
 					$("li#filename>span").text("讀取的檔名為："+this.files[0].name);
 					if(this.files[0].type.match("text/xml")) {
 						var reader = new FileReader();
@@ -263,8 +264,8 @@
 									columnlog++;
 								});
 								$("li#totalrows>span").text("該檔案總列數為："+rows.length+"列，請記得刪除第一列的空白列，並將檔案空格補0後，開始分析");
-								$(oriobj).parent().children("span.loading").hide();
-								$(oriobj).parent().children("ul.fa-ul").show();
+								$(oriobj).next("span.loading").hide();
+								$(oriobj).next().next("ul.fa-ul").show();
 								$("button#analysis").attr("disabled", false);
 								$("button#analysis").on("click", function() {
 									classnames = new Array();
