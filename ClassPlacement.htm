@@ -306,7 +306,7 @@
 												tr.append(td);
 												columnlog++;
 											});
-                                            var settingbtn = $("<button>設定參數</button>");
+                                            var settingbtn = $("<button class='classsettings'><i class='fa fa-cog' aria-hidden='true'></i>設定</button>");
                                             settingbtn.data("obj", classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent]);
                                             settingbtn.on("click",function() {
                                                 dialog.data("obj",$(this).data("obj"));
@@ -315,6 +315,7 @@
                                             });
                                             var settingtd = $("<td></td>");
                                             settingtd.append(settingbtn);
+                                            settingbtn.hide();
                                             tr.append(settingtd);
                                             for(var i=1;i<=maxfieldval;i++) {
                                                 var td = $("<td>&nbsp;</td>");
@@ -473,6 +474,7 @@
                                         }
 									});
                                     sendlog("一共有"+Object.keys(fulldata).length+"人參與選課，抓到"+ban+"人偷選課，"+dup+"人多次填寫選課問卷");
+                                    $("button.classsettings").show();
                                     $.each(classes, function(key,value) {
                                         for(var i=0;i<maxfieldval;i++) {
                                             value.buildTotal(i);
@@ -494,7 +496,7 @@
                                             optclassnoArr.push(value.result);
                                         });
                                         tempdata.sort(function(a,b) {
-                                            return parseInt(a.studentio,10) - parseInt(b.studentio,10);
+                                            return parseInt(a.studentid,10) - parseInt(b.studentid,10);
                                         });
                                         $.unique(oriclassnoArr);
                                         $.unique(optclassnoArr);
@@ -544,7 +546,7 @@
                                                 }
                                             });
                                             tmpClassArr.sort(function(a,b) {
-                                                return parseInt(a.studentio,10) - parseInt(b.studentio,10);
+                                                return parseInt(a.studentid,10) - parseInt(b.studentid,10);
                                             });
                                             var id = 1;
                                             tmpClassArr.forEach(function(item) {
@@ -695,7 +697,7 @@
                                 if(value.previous != oriobj.previousLimit) {
                                     dataArr.push(number);
                                 } else {
-                                    sendlog("發現擋修！"+value.studentio+"在"+oriobj.name+"第"+(i+1)+"志願已修過"+oriobj.previousLimit);
+                                    sendlog("發現擋修！"+value.studentid+"在"+oriobj.name+"第"+(i+1)+"志願已修過"+oriobj.previousLimit);
                                 }
                             });
                             this.data[i] = dataArr;
@@ -752,7 +754,7 @@
                     if(student.result === false) {
                         if(this.limit > this.selected.length) {
                             student.result = this.name;
-                            this.selected.push(student.studentio);
+                            this.selected.push(student.studentid);
                         }
                     }
                 }
@@ -789,9 +791,9 @@
                 }
             }
             class studentdata {
-                constructor(name, studentio, classno, seatno, previous) {
+                constructor(name, studentid, classno, seatno, previous) {
                     this.name = name;
-                    this.studentio = studentio;
+                    this.studentid = studentid;
                     this.classno = classno;
                     this.seatno = seatno;
                     this.previous = previous;
@@ -801,13 +803,13 @@
                     var str = "";
                     switch(type) {
                         case 0:
-                            str = this.studentio+","+this.classno+","+this.seatno+","+this.name+","+this.result;
+                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name+","+this.result;
                         break;
                         case 1:
                             str = this.seatno+","+this.name+","+this.result;
                         break;
                         case 2:
-                            str = this.studentio+","+this.classno+","+this.seatno+","+this.name;
+                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name;
                         break;
                     }
                     return str;
