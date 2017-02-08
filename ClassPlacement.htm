@@ -292,6 +292,7 @@
                                     }
                                     thead.append(th);
 									classtable.append(thead);
+                                    var limit = 0;
                                     var tbody = $("<tbody></tbody>");
 									$.each(rows, function(key, value) {
 										logger++;
@@ -301,6 +302,7 @@
                                             classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent] = new classdata($(value).find("Cell>Data").eq(numfieldval)[0].textContent,$(value).find("Cell>Data").eq(classfieldval)[0].textContent,$(value).find("Cell>Data").eq(limitfieldval)[0].textContent,tr);
                                             classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent].totalfields = new Array();
                                             classes[$(value).find("Cell>Data").eq(classfieldval)[0].textContent].setRange(maxfieldval);
+                                            limit += parseInt($(value).find("Cell>Data").eq(limitfieldval)[0].textContent,10);
 											$.each($(value).find("Cell>Data"), function(key, value) {
 												var td = $("<td>"+value.textContent+"</td>");
 												tr.append(td);
@@ -327,6 +329,7 @@
 									});
                                     classtable.append(tbody);
 									$("section#totaltable").append(classtable);
+                                    sendlog("讀入各班選課資料，有"+Object.keys(classes).length+"堂課，提供"+limit+"人選課");
                                 });
                                 $("input#previousLimit").attr("disabled", false);
                                 $("input#blurLimit").attr("disabled", false);
@@ -448,32 +451,46 @@
                                     fulldata = new Object();
                                     var dup = 0;
                                     var ban = 0;
+                                    var ety = new Array();
 									$.each(rows, function(key, value) {
 										logger++;
 										if(logger > 1) {
                                             var stuno = $(value).find("Cell>Data").eq(stunofieldval)[0].textContent;
                                             var stuname = $(value).find("Cell>Data").eq(namefieldval)[0].textContent;
                                             if(banlist.indexOf(stuno) == -1) {
-                                                var rankcount = 0;
                                                 var tr = $("<tr></tr>");
                                                 var std = new studentdata(stuname,stuno,$(value).find("Cell>Data").eq(classnofieldval)[0].textContent,$(value).find("Cell>Data").eq(seatnofieldval)[0].textContent,$(value).find("Cell>Data").eq(previousfieldval)[0].textContent);
+                                                $.each(rankelements, function(key, ele) {
+                                                    var rank = parseInt($($(ele).children("select")[0]).val(),10);
+                                                    std.enrolls.push($(value).find("Cell>Data").eq(rank)[0].textContent);
+                                                });
                                                 if(fulldata[stuno] != undefined) {
                                                     sendlog("發現重複填寫選課資料："+stuno+"("+stuname+")！已用後面的結果取代前面的");
                                                     dup++;
                                                 }
                                                 fulldata[stuno] = std;
-                                                $.each(rankelements, function(key, ele) {
-                                                    var rank = parseInt($($(ele).children("select")[0]).val(),10);
-                                                    classes[$(value).find("Cell>Data").eq(rank)[0].textContent].data[rankcount].push(stuno);
-                                                    rankcount++;
-                                                });
                                             } else {
                                                 sendlog("發現黑名單人物："+stuno+"("+stuname+")偷選課！已移除");
                                                 ban++;
                                             }
                                         }
 									});
-                                    sendlog("一共有"+Object.keys(fulldata).length+"人參與選課，抓到"+ban+"人偷選課，"+dup+"人多次填寫選課問卷");
+                                    $.each(fulldata, function(key, value) {
+                                        for(var i=0;i<value.enrolls.length;i++) {
+                                            var item = value.enrolls[i];
+                                            var rankcount = 0;
+                                            var rank = parseInt($($(rankelements[i]).children("select")[0]).val(),10);
+                                            if(Object.keys(classes).indexOf(item) > -1) {
+                                                classes[item].data[i].push(value.studentid);
+                                            } else {
+                                                if(ety.indexOf(value.studentid) == -1) {
+                                                    ety.push(value.studentid);
+                                                }
+                                            }
+                                        }
+                                    });
+                                    sendlog("以下的學生選課內容不存在："+ety.join());
+                                    sendlog("一共有"+Object.keys(fulldata).length+"人參與選課，抓到"+ban+"人偷選課，"+dup+"人多次填寫選課問卷，"+ety.length+"人選的志願不存在");
                                     $("button.classsettings").show();
                                     $.each(classes, function(key,value) {
                                         for(var i=0;i<maxfieldval;i++) {
@@ -501,7 +518,19 @@
                                         $.unique(oriclassnoArr);
                                         $.unique(optclassnoArr);
 										output = "\ufeff";
-                                        output += "學號,班級,座號,姓名,分發結果\r";
+                                        output += "班級,最高選課人數,剩餘人數\r";
+                                        $.each(classes, function(key, value) {
+                                            output += value.getRow()+"\r";
+                                        });
+										var download = $("<a></a>");
+										download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+										download.attr("download", "特課班級總表("+printdate+").csv");
+										download.css("display","none");
+										$("footer").append(download);
+										download[0].click();
+										$("footer").empty();
+										output = "\ufeff";
+                                        output += "學號,班級,座號,姓名,分發結果,志願序\r";
                                         tempdata.forEach(function(item) {
                                             output += item.getRow(0)+"\r";
                                         });
@@ -539,7 +568,7 @@
                                         optclassnoArr.forEach(function(cls) {
                                             tmpClassArr = new Array();
                                             output = "\ufeff";
-                                            output += "序號,學號,班級,座號,姓名\r";
+                                            output += "序號,學號,班級,座號,姓名,志願序\r";
                                             tempdata.forEach(function(stu) {
                                                 if(cls == stu.result) {
                                                     tmpClassArr.push(stu);
@@ -564,9 +593,13 @@
                                     });
                                     $("button#markanalysis").off();
                                     $("button#markanalysis").on("click", function() {
+                                        var limit = 0;
                                         $.each(classes, function(key, value) {
-                                            value.limitCheck();
+                                            if(value.limitCheck()) {
+                                                limit++;
+                                            }
                                         });
+                                        sendlog("一共有"+limit+"個課程有限制條件");
                                     });
                                     $("button#limitanalysis").off();
                                     $("button#limitanalysis").on("click", function() {
@@ -631,7 +664,7 @@
                                                         var remaincount = 0;
                                                         remainstu.forEach(function(stu) {
                                                             remainArr.forEach(function(item) {
-                                                                item.selectClass(stu);
+                                                                item.selectClass(stu, maxfieldval);
                                                             });
                                                             if(stu.result === false) {
                                                                 remaincount++;
@@ -680,6 +713,12 @@
                     this.blurLimit = false;
                     this.rankSource = false;
                     this.selected = new Array();
+                }
+                getRemain() {
+                    return this.limit - this.selected.length;
+                }
+                getRow() {
+                    return this.name+","+this.limit+","+this.getRemain();
                 }
                 setRange(num) {
                     this.data = new Array(num);
@@ -743,17 +782,20 @@
                     var count = 0;
                     $.each(this.data[rank], function(key, num) {
                         var value = fulldata[num];
-                        oriobj.selectClass(value);
+                        oriobj.selectClass(value, rank);
                         if(value.result === false) {
                             count++;
                         }
                     });
                     sendlog(this.name+"第"+(rank+1)+"次分發有"+count+"人沒有分發到");
                 }
-                selectClass(student) {
+                selectClass(student, rank) {
                     if(student.result === false) {
                         if(this.limit > this.selected.length) {
                             student.result = this.name;
+                            var possablerank = student.enrolls.indexOf(this.name);
+                            student.rank = possablerank > rank ? possablerank : rank;
+                            student.rank+=1;
                             this.selected.push(student.studentid);
                         }
                     }
@@ -785,9 +827,12 @@
                     if(limit.length != 0) {
                         $(this.element).css("backgroundColor","#EEE");
                         sendlog(this.name+"有設定條件："+limit.join());
+                        return true;
                     } else {
                         $(this.element).css("backgroundColor","#FFF");
+                        return false;
                     }
+                    return false;
                 }
             }
             class studentdata {
@@ -798,18 +843,20 @@
                     this.seatno = seatno;
                     this.previous = previous;
                     this.result = false;
+                    this.enrolls = new Array();
+                    this.rank = -1;
                 }
                 getRow(type) {
                     var str = "";
                     switch(type) {
                         case 0:
-                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name+","+this.result;
+                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name+","+this.result+","+this.rank;
                         break;
                         case 1:
                             str = this.seatno+","+this.name+","+this.result;
                         break;
                         case 2:
-                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name;
+                            str = this.studentid+","+this.classno+","+this.seatno+","+this.name+","+this.rank;
                         break;
                     }
                     return str;
