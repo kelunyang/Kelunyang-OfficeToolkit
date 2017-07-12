@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+	<head>
+		<title>重修科目統計器</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
+        <link rel="stylesheet" href="http://code.jquery.com/ui/1.12.1/themes/cupertino/jquery-ui.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+        <style type="text/css">
+			table {
+				border-spacing: 0px;
+				border: 1px solid black;
+                border-top:none;
+				margin: 5px;
+			}
+            table td, table th {
+				border-spacing: 0px;
+				border: 1px solid black;
+				border-right: none;
+				border-bottom: none;
+            }
+			tr td:first-child, thead th:first-child{
+				border-left: none;
+			}
+			th {
+				border-top: none;
+			}
+            thead > tr > th > span {
+                writing-mode: vertical-lr;
+            }
+            thead > tr > th {
+                height: 200px;
+                vertical-align: top;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <section id="intro">
+            <h1>程式使用說明</h1>
+            <ul class="fa-ul">
+                <li><i class="fa-li fa fa-chrome"></i>請使用Google Chrome瀏覽器，並且確認你的網路是通暢的</li>
+                <li><i class="fa-li fa fa-wpforms"></i>本程式可以快速統計學生重修了哪些課程，你只需要準備好對應欄位的Google問卷</li>
+                <li><i class="fa-li fa fa-list-ol"></i>操作說明如下：
+                    <ol>
+                        <li>請注意！如果你需要按照科目排序，請先進入問卷輸入頁面，把各年級全部的科目全部都複製下來（在問卷中選住全部的科目即可）</li>
+                        <li>如此做的目的是在於程式中不用寫入科目名稱，以後要是換了重補修科目也只要改問卷就好了</li>
+                        <li>首先，請確認你的重修登記問卷的欄位應該要包含「學生學號」、「高一上重修科目」、「高一下重修科目」、「高二上重修科目」、「高二
+                            上重修科目」</li>
+                        <li>再來，你會需要設定欄位對應，然後程式就會自己分析問卷結果了</li>
+                    </ol>
+                </li>
+                <li><i class="fa-li fa fa-table"></i>請注意，本程式需要你將Google問卷結果匯出為CSV格式，操作方法如下
+                    <ol>
+                        <li>在Google問卷結果那一頁的右上角的...按一下</li>
+                        <li>選擇「下載回應(csv)」，你就會取得CSV檔案</li>
+                        <li>請注意，CSV有可能Excel打開後會是亂碼，但不用緊張，本程式可以分析的</li>
+                    </ol>
+                </li>
+                <li><i class="fa-li fa fa-info-circle" ></i>請注意，電腦彙整資料時，學生數量X重修科目可能會有上千種排列組合，計算時畫面會延遲一兩面，請千萬不要以為是當機了</li>
+                <li><i class="fa-li fa fa-github"></i>你也可以在GitHub上找到本程式的原始碼，或許有的時候會更新版本：<a href="https://github.com/kelunyang/Kelunyang-OfficeToolkit">https://github.com/kelunyang/Kelunyang-OfficeToolkit</a></li>
+            </ul>
+            <p style="text-align: right;">Designer: <a href="mailto:kelunyang@outlook.com">Kelunyang</a> 2017 CC-BY-NC-SA</p>
+            <p style="text-align: center"><button id="start">我看懂了！開始吧！</button></p>
+            </section>
+            <section id="fieldconfig">
+                <h1>第一步：選擇學生重修登記問卷的CSV</h1>
+                <input type="file" id="retakefile"/>
+                <span class="loading"><i class="fa fa-cog fa-spin" aria-hidden="true"></i>載入中...</span>
+                <ul class="fa-ul">
+					<li id="retakefilename"><i class="fa-li fa fa-file-text-o"></i><span>檔名</span></li>
+					<li id="retaketotalrows"><i class="fa-li fa fa-info-circle"></i><span>總列數</span></li>
+					<li id="retakeconfig"><i class="fa-li fa fa-table"></i>
+                        <span>請設定欄位對應關係</span>
+                        <ol>
+                            <li><label>學號欄位：<select id="idfield"></select></label></li>
+                            <li><label>高一重修科目欄位：<select id="firstyfield"></select></label></li>
+                            <li><label>高二重修科目欄位：<select id="secondyfield"></select></label></li>
+                            <li><label>學生額外資訊（學號、班級、座號欄位，使用額外資訊的話輸出統計表時就會用班級座號輸出）：<input id="detailswitch" type="checkbox"></input></label>
+                                <ol id="detailol">
+                                    <li><label>班級欄位：<select id="classfield"></select></label></li>
+                                    <li><label>座號欄位：<select id="nofield"></select></label></li>
+                                    <li><label>姓名欄位：<select id="namefield"></select></label></li>
+                                </ol>
+                            </li>
+                        </ol>
+                    </li>
+                    <li id="retakeloadxml"><button id="reatkeloadb" type="button" disabled>載入資料</button></li>
+                </ul>
+            </section>
+            <section id="rankconfig">
+                <h1>第二步：建立科目清單</h1>
+                <ul class="fa-ul">
+					<li id="retakeconfig"><i class="fa-li fa fa-table"></i>
+                        <span>請到問卷中把所有的科目選項都複製下來之後貼上</span>
+                        <ol>
+                            <li><label>請輸入科目清單（灰色的部分只是範例資料，你複製的也應該貼上像是這樣的格式，範例資料會在你貼上後瞬間消失）：<br/>
+                                <textarea id="rankfield" rows="10" cols="50" placeholder="國文一上（4）
+國文一下（4）
+英文一上（4）"></textarea>
+                            </label></li>
+                        </ol>
+                    </li>
+                    <li id="retakeanalysis"><button id="retakeanalysisb" type="button" disabled>輸出統計表</button></li>
+                </ul>
+            </section>
+        </header>
+        <article id="outputtable">
+            <h1>統計結果</h1>
+            <textarea id="outputinfo" rows="10" cols="50" placeholder="輸出結果"></textarea>
+            <button id="downloadtotal" disabled>下載統計結果</button>
+            <section id="totaltable"></section>
+        </article>
+        <footer>
+		</footer>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+		<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.3.3/papaparse.min.js"></script>
+        <script>
+            csvdata = null;
+            activecourse = null;
+            activerow = null;
+            date = new Date();
+            $().ready(function() {
+                $("section#fieldconfig").hide();
+                $("section#rankconfig").hide();
+                $("article#outputtable").hide();
+                $("span.loading").hide();
+                $("ol#detailol").hide();
+                $("button#start").on("click", function() {
+                    $("section#intro").hide();
+                    $("section#fieldconfig").show();
+                });
+                $("input#retakefile").on("change", function() {
+                    $("span.loading").show();
+                    var oriobj = this;
+                    $(oriobj).next("span.loading").show();
+                    if(this.files[0].name.indexOf(".csv") > -1) {
+                        $("li#retakefilename>span").text("讀取的檔名為："+this.files[0].name);
+                        Papa.parse(this.files[0], {
+                            complete: function(results) {
+                                $("span.loading").hide();
+                                csvdata = results.data;
+                                $("li#retaketotalrows>span").text("該檔案總列數為："+(csvdata.length-1)+"列");
+                                $("select#idfield").empty();
+                                $("select#firstyfield").empty();
+                                $("select#secondyfield").empty();
+                                $("select#classfield").empty();
+                                $("select#nofield").empty();
+                                $("select#namefield").empty();
+                                var fieldcount = 0;
+                                csvdata[0].forEach(function(value) {
+									$("select#idfield").append($("<option></option>").attr("value", fieldcount).text(value));
+									$("select#firstyfield").append($("<option></option>").attr("value", fieldcount).text(value));
+                                    $("select#secondyfield").append($("<option></option>").attr("value", fieldcount).text(value));
+                                    $("select#classfield").append($("<option></option>").attr("value", fieldcount).text(value));
+                                    $("select#nofield").append($("<option></option>").attr("value", fieldcount).text(value));
+                                    $("select#namefield").append($("<option></option>").attr("value", fieldcount).text(value));
+                                    fieldcount++;
+                                });
+                                csvdata.splice(0, 1);   //移除標題欄
+                                $("button#retakeanalysisb").attr("disabled", false);
+                                $("button#reatkeloadb").attr("disabled", false);
+                                $("input#detailswitch").attr("disabled", false);
+                                $("input#detailswitch").off();
+                                $("input#detailswitch").on("click", function() {
+                                    if($("input#detailswitch").prop("checked")) {
+                                        $("ol#detailol").css("display","block");
+                                    } else {
+                                        $("ol#detailol").css("display","none");
+                                    }
+                                });
+                                $("button#reatkeloadb").off();
+                                $("button#reatkeloadb").on("click", function() {
+                                    $("section#fieldconfig").hide();
+                                    $("section#rankconfig").show();
+                                    var idfieldval = parseInt($( "select#idfield option:selected" ).val(),10);
+                                    $("datalist#ranklist").empty();
+                                    var fieldcount = 0;
+                                    csvdata.forEach(function(value) {
+                                        $("datalist#ranklist").append($("<option></option>").attr("value", value[idfieldval]+"(第"+fieldcount+"筆)"));
+                                        fieldcount++;
+                                    });
+                                });
+                                $("button#retakeanalysisb").off();
+                                $("button#retakeanalysisb").on("click",function() {
+                                    $("section#rankconfig").hide();
+                                    $("article#outputtable").show();
+                                    var rowcount = 0;
+                                    var idfieldval = parseInt($( "select#idfield option:selected" ).val(),10);
+                                    var firstyfieldval = parseInt($( "select#firstyfield option:selected" ).val(),10);
+                                    var secondyfieldval = parseInt($( "select#secondyfield option:selected" ).val(),10);
+                                    var classfieldval = parseInt($( "select#classfield option:selected" ).val(),10);
+                                    var nofieldval = parseInt($( "select#nofield option:selected" ).val(),10);
+                                    var namefieldval = parseInt($( "select#namefield option:selected" ).val(),10);
+                                    var rankfieldval = $("textarea#rankfield").val();
+                                    var detail = $("input#detailswitch").prop("checked");
+                                    activerow = new Object();
+                                    activecourse = new Object();
+                                    //建立科目清單
+                                    var courses = rankfieldval.split('\n');
+                                    courses.forEach(function(item) {
+                                        activecourse[item] = new Array();
+                                    });
+                                    //建立每個人的重修清單
+                                    csvdata.sort(function(a, b) {
+                                        if(detail) {
+                                            a[nofieldval] = ("00" + a[nofieldval]).slice(-2);
+                                            b[nofieldval] = ("00" + b[nofieldval]).slice(-2);
+                                            return parseInt(a[classfieldval]+a[nofieldval],10) - parseInt(b[classfieldval]+b[nofieldval],10);
+                                        }
+                                        return a[idfieldval] - b[idfieldval];
+                                    });
+                                    for(var i=0;i<csvdata.length;i++) {
+                                        var row = csvdata[i];
+                                        var firstarr = row[firstyfieldval].split(';');
+                                        var secondarr = row[secondyfieldval].split(';');
+                                        var key = !detail ? row[idfieldval] : row[classfieldval]+row[nofieldval];
+                                        if(Object.keys(activerow).indexOf(key) > -1) {
+                                            $("textarea#outputinfo").val($("textarea#outputinfo").val()+"\n編號："+key+"重複填寫！已用後面的結果蓋掉前面");
+                                        }
+                                        activerow[key] = {
+                                            id: row[idfieldval],
+                                            firsty: firstarr,
+                                            secondy: secondarr,
+                                            detail: false
+                                        }
+                                        firstarr.forEach(function(item) {
+                                            if(item != "") {
+                                                if(Object.keys(activecourse).indexOf(item) > -1) {
+                                                    if(activecourse[item].indexOf(key) == -1) {
+                                                        activecourse[item].push(key);
+                                                    }
+                                                } else {
+                                                    activecourse[item] = new Array();
+                                                    activecourse[item].push(key);
+                                                }
+                                            }
+                                        });
+                                        secondarr.forEach(function(item) {
+                                            if(item != "") {
+                                                if(Object.keys(activecourse).indexOf(item) > -1) {
+                                                    if(activecourse[item].indexOf(key) == -1) {
+                                                        activecourse[item].push(key);
+                                                    }
+                                                } else {
+                                                    activecourse[item] = new Array();
+                                                    activecourse[item].push(key);
+                                                }
+                                            }
+                                        });
+                                        if(detail) {
+                                            activerow[key].detail = true;
+                                            activerow[key].name = row[namefieldval];
+                                            activerow[key].class = row[classfieldval];
+                                            activerow[key].no = row[nofieldval];
+                                        }
+                                    }
+                                    $("textarea#outputinfo").val($("textarea#outputinfo").val()+"\n讀入"+csvdata.length+"筆選課資料，刪除重複的後留下"+Object.keys(activerow).length+"筆");
+                                    //建立表格
+                                    $("section#totaltable").empty();
+                                    var table = $("<table id='retaketable'></table>");
+                                    var thead = $("<thead></thead>");
+                                    var titletr = $("<tr></tr>");
+                                    titletr.append($("<th></th>"));
+                                    var loggedcourse = Object.keys(activecourse).length;
+                                    Object.keys(activecourse).forEach(function(item) {
+                                        if(activecourse[item].length > 0) {
+                                            var td = $("<th></th>");
+                                            var span = $("<span></span>");
+                                            span.text(item);
+                                            td.append(span);
+                                            titletr.append(td);
+                                        } else {
+                                            $("textarea#outputinfo").val($("textarea#outputinfo").val()+"\n科目："+item+"無人選修，清除該科");
+                                            delete activecourse[item];
+                                        }
+                                    });
+                                    var realcourse = Object.keys(activecourse).length;
+                                    $("textarea#outputinfo").val($("textarea#outputinfo").val()+"\n科目清單載入完成，"+loggedcourse+"個科目中，有"+realcourse+"科目有人重修");
+                                    thead.append(titletr);
+                                    table.append(thead);
+                                    var tbody = $("<tbody></tbody>");
+                                    Object.keys(activerow).forEach(function(item) {
+                                        var obj = activerow[item];
+                                        var tr = $("<tr></tr>");
+                                        var td = $("<td></td>");
+                                        var writtenval = obj.detail ? obj.class+"-"+obj.no : item;
+                                        td.text(writtenval);
+                                        tr.append(td);
+                                        Object.keys(activecourse).forEach(function(item) {
+                                            var td = $("<td></td>");
+                                            if(obj.firsty.indexOf(item) > -1) {
+                                                td.text("1");
+                                            }
+                                            if(obj.secondy.indexOf(item) > -1) {
+                                                td.text("1");
+                                            }
+                                            tr.append(td);
+                                        });
+                                        tbody.append(tr);
+                                    });
+                                    table.append(tbody);
+                                    var tfoot = $("<tfoot></tfoot>");
+                                    var foottr = $("<tr></tr>");
+                                    foottr.append("<td></td>");
+                                    Object.keys(activecourse).forEach(function(item) {
+                                        var td = $("<td></td>");
+                                        td.text(activecourse[item].length);
+                                        foottr.append(td);
+                                    });
+                                    tfoot.append(foottr);
+                                    table.append(tfoot);
+                                    $("section#totaltable").append(table);
+                                    $("textarea#outputinfo").val($("textarea#outputinfo").val()+"\n輸出完成！");
+                                    $("textarea#outputinfo").scrollTop($("textarea#outputinfo")[0].scrollHeight);
+                                });
+                                $("button#downloadtotal").attr("disabled", false);
+                                $("button#downloadtotal").on("click", function() {
+                                    var output = "\ufeff";
+                                    $("table#retaketable>thead th").each(function(key, value) {
+                                        output += "\""+value.textContent+"\","
+                                    });
+                                    output += "\r";
+                                    $("table#retaketable>tbody tr").each(function(key, value) {
+                                        $(value).children("td").each(function(key, value) {
+                                            output += "\""+value.textContent+"\",";
+                                        });
+                                        output += "\r";
+                                    });
+                                    $("table#retaketable>tfoot tr").each(function(key, value) {
+                                        $(value).children("td").each(function(key, value) {
+                                            output += "\""+value.textContent+"\",";
+                                        });
+                                        output += "\r";
+                                    });
+                                    var download = $("<a></a>");
+                                    download.attr("href", 'data:text/plain;charset=utf-8,' + encodeURIComponent(output));
+                                    download.attr("download", "學生重修登記統計表("+date.getFullYear()+(date.getMonth()+1)+date.getDate()+").csv");
+                                    download.css("display","none");
+                                    $("footer").append(download);
+                                    download[0].click();
+                                    $("footer").empty();
+                                });
+                            }
+                        });
+                    } else {
+                        $("li#retakefilename>span").text("請選擇CSV檔案！");
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
